@@ -52,5 +52,5 @@ PyAlgoTrade is developed and tested using Python 2.7/3.7 and depends on:
 You can install PyAlgoTrade using pip like this:
 
 ```
-pip install pyalgotrade
+pip install git+https://github.com/ahmedengu/pyalgotrade_Bitmex.git
 ```
