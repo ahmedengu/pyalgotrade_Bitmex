@@ -24,12 +24,14 @@ Main Features
  * Event driven.
  * Supports Market, Limit, Stop and StopLimit orders.
  * Supports any type of time-series data in CSV format like Yahoo! Finance, Google Finance, Quandl and NinjaTrader.
- * Bitcoin trading support through [Bitstamp](https://www.bitstamp.net/).
+ * Bitcoin trading support through [Bitstamp](https://www.bitstamp.net/) and [Bitmex](https://www.bitmex.com/).
  * Technical indicators and filters like SMA, WMA, EMA, RSI, Bollinger Bands, Hurst exponent and others.
  * Performance metrics like Sharpe ratio and drawdown analysis.
  * Handling Twitter events in realtime.
  * Event profiler.
  * TA-Lib integration.
+ * Telegram bot.
+ * websocket support.
 
 Installation
 ------------
@@ -44,6 +46,8 @@ PyAlgoTrade is developed and tested using Python 2.7/3.7 and depends on:
  * [ws4py](https://github.com/Lawouach/WebSocket-for-Python) for Bitstamp support.
  * [tornado](http://www.tornadoweb.org/en/stable/) for Bitstamp support.
  * [tweepy](https://github.com/tweepy/tweepy) for Twitter support.
+ * [Bitmex](https://pypi.org/project/bitmex-client/) for bitmex support.
+ * [python-telegram-bot](https://pypi.org/project/python-telegram-bot/) for telegram support.
 
 You can install PyAlgoTrade using pip like this:
 
