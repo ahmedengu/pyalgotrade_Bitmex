@@ -25,12 +25,12 @@ import threading
 import six
 from ws4py.client import tornadoclient
 import tornado
+
 if six.PY3:
     import asyncio
     import tornado.platform.asyncio
 
 import pyalgotrade.logger
-
 
 logger = pyalgotrade.logger.getLogger("websocket.client")
 
@@ -39,8 +39,8 @@ logger = pyalgotrade.logger.getLogger("websocket.client")
 # from the server.
 class KeepAliveMgr(object):
     def __init__(self, wsClient, maxInactivity, responseTimeout):
-        assert(maxInactivity > 0)
-        assert(responseTimeout > 0)
+        assert (maxInactivity > 0)
+        assert (responseTimeout > 0)
         self.__callback = None
         self.__wsClient = wsClient
         self.__activityTimeout = maxInactivity
@@ -99,8 +99,11 @@ class KeepAliveMgr(object):
 # To use it call connect and startClient, and stopClient.
 # Note that this class has thread affinity, so build it and use it from the same thread.
 class WebSocketClientBase(tornadoclient.TornadoWebSocketClient):
-    def __init__(self, url):
-        super(WebSocketClientBase, self).__init__(url)
+    def __init__(self, url, protocols=None, extensions=None,
+                 io_loop=None, ssl_options=None, headers=None, exclude_headers=None):
+        super(WebSocketClientBase, self).__init__(url, protocols=protocols, extensions=extensions,
+                                                  io_loop=io_loop, ssl_options=ssl_options, headers=headers,
+                                                  exclude_headers=exclude_headers)
         self.__keepAliveMgr = None
         self.__connected = False
 
@@ -124,7 +127,10 @@ class WebSocketClientBase(tornadoclient.TornadoWebSocketClient):
 
     def received_message(self, message):
         try:
-            msg = json.loads(message.data)
+            decode = message.data.decode('utf-8')
+            if decode == 'pong' or decode == 'ping':
+                decode = '{"table":"'+decode+'"}'
+            msg = json.loads(decode)
 
             if self.__keepAliveMgr is not None:
                 self.__keepAliveMgr.setAlive()
@@ -172,7 +178,7 @@ class WebSocketClientBase(tornadoclient.TornadoWebSocketClient):
 
     def onUnhandledException(self, exception):
         logger.critical("Unhandled exception", exc_info=exception)
-        raise
+        raise Exception("Unhandled exception")
 
     def onOpened(self):
         pass

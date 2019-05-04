@@ -47,6 +47,7 @@ class BarGrouper(resamplebase.Grouper):
         self.__volume = bar_.getVolume()
         self.__adjClose = bar_.getAdjClose()
         self.__useAdjValue = bar_.getUseAdjValue()
+        self.__extra = bar_.getExtraColumns()
         self.__frequency = frequency
 
     def addValue(self, value):
@@ -61,7 +62,7 @@ class BarGrouper(resamplebase.Grouper):
         ret = bar.BasicBar(
             self.getDateTime(),
             self.__open, self.__high, self.__low, self.__close, self.__volume, self.__adjClose,
-            self.__frequency
+            self.__frequency, self.__extra
         )
         ret.setUseAdjustedValue(self.__useAdjValue)
         return ret

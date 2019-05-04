@@ -21,8 +21,8 @@
 
 from pyalgotrade import broker
 from pyalgotrade.broker import backtesting
-from pyalgotrade.bitstamp import common
-from pyalgotrade.bitstamp import livebroker
+from pyalgotrade.bitmex import common
+from pyalgotrade.bitmex import livebroker
 
 
 LiveBroker = livebroker.LiveBroker
@@ -36,7 +36,7 @@ LiveBroker = livebroker.LiveBroker
 class BacktestingBroker(backtesting.Broker):
     MIN_TRADE_USD = 5
 
-    """A Bitstamp backtesting broker.
+    """A bitmex backtesting broker.
 
     :param cash: The initial amount of cash.
     :type cash: int/float.
@@ -52,7 +52,7 @@ class BacktestingBroker(backtesting.Broker):
         * SELL_SHORT orders are mapped to SELL orders.
     """
 
-    def __init__(self, cash, barFeed, fee=0.0025):
+    def __init__(self, cash, barFeed, fee=0):
         commission = backtesting.TradePercentage(fee)
         super(BacktestingBroker, self).__init__(cash, barFeed, commission)
 
@@ -104,7 +104,7 @@ class BacktestingBroker(backtesting.Broker):
 
 
 class PaperTradingBroker(BacktestingBroker):
-    """A Bitstamp paper trading broker.
+    """A bitmex paper trading broker.
 
     :param cash: The initial amount of cash.
     :type cash: int/float.

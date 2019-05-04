@@ -23,6 +23,7 @@ import abc
 import six
 
 from pyalgotrade import broker
+from pyalgotrade.bitmex import common
 from pyalgotrade.broker import fillstrategy
 from pyalgotrade import logger
 import pyalgotrade.bar
@@ -100,6 +101,7 @@ class TradePercentage(Commission):
 class BacktestingOrder(object):
     def __init__(self, *args, **kwargs):
         self.__accepted = None
+        self.__extra = kwargs['extra'] if 'extra' in kwargs else {}
 
     def setAcceptedDateTime(self, dateTime):
         self.__accepted = dateTime
@@ -112,26 +114,34 @@ class BacktestingOrder(object):
     def process(self, broker_, bar_):
         raise NotImplementedError()
 
+    def getExtra(self):
+        return self.__extra
 
 class MarketOrder(broker.MarketOrder, BacktestingOrder):
-    def __init__(self, action, instrument, quantity, onClose, instrumentTraits):
-        super(MarketOrder, self).__init__(action, instrument, quantity, onClose, instrumentTraits)
+    def __init__(self, action, instrument, quantity, onClose, instrumentTraits, extra={}):
+        super(MarketOrder, self).__init__(action, instrument, quantity, onClose, instrumentTraits, extra=extra)
 
     def process(self, broker_, bar_):
         return broker_.getFillStrategy().fillMarketOrder(broker_, self, bar_)
 
+    def getStopHit(self):
+        return True
+
 
 class LimitOrder(broker.LimitOrder, BacktestingOrder):
-    def __init__(self, action, instrument, limitPrice, quantity, instrumentTraits):
-        super(LimitOrder, self).__init__(action, instrument, limitPrice, quantity, instrumentTraits)
+    def __init__(self, action, instrument, limitPrice, quantity, instrumentTraits, extra={}):
+        super(LimitOrder, self).__init__(action, instrument, limitPrice, quantity, instrumentTraits, extra=extra)
 
     def process(self, broker_, bar_):
         return broker_.getFillStrategy().fillLimitOrder(broker_, self, bar_)
 
+    def getStopHit(self):
+        return True
+
 
 class StopOrder(broker.StopOrder, BacktestingOrder):
-    def __init__(self, action, instrument, stopPrice, quantity, instrumentTraits):
-        super(StopOrder, self).__init__(action, instrument, stopPrice, quantity, instrumentTraits)
+    def __init__(self, action, instrument, stopPrice, quantity, instrumentTraits, extra={}):
+        super(StopOrder, self).__init__(action, instrument, stopPrice, quantity, instrumentTraits, extra=extra)
         self.__stopHit = False
 
     def process(self, broker_, bar_):
@@ -147,8 +157,8 @@ class StopOrder(broker.StopOrder, BacktestingOrder):
 # http://www.sec.gov/answers/stoplim.htm
 # http://www.interactivebrokers.com/en/trading/orders/stopLimit.php
 class StopLimitOrder(broker.StopLimitOrder, BacktestingOrder):
-    def __init__(self, action, instrument, stopPrice, limitPrice, quantity, instrumentTraits):
-        super(StopLimitOrder, self).__init__(action, instrument, stopPrice, limitPrice, quantity, instrumentTraits)
+    def __init__(self, action, instrument, stopPrice, limitPrice, quantity, instrumentTraits, extra={}):
+        super(StopLimitOrder, self).__init__(action, instrument, stopPrice, limitPrice, quantity, instrumentTraits, extra=extra)
         self.__stopHit = False  # Set to true when the limit order is activated (stop price is hit)
 
     def setStopHit(self, stopHit):
@@ -500,7 +510,7 @@ class Broker(broker.Broker):
     def peekDateTime(self):
         return None
 
-    def createMarketOrder(self, action, instrument, quantity, onClose=False):
+    def createMarketOrder(self, action, instrument, quantity, onClose=False, extra={}):
         # In order to properly support market-on-close with intraday feeds I'd need to know about different
         # exchange/market trading hours and support specifying routing an order to a specific exchange/market.
         # Even if I had all this in place it would be a problem while paper-trading with a live feed since
@@ -508,26 +518,52 @@ class Broker(broker.Broker):
         if onClose is True and self.__barFeed.isIntraday():
             raise Exception("Market-on-close not supported with intraday feeds")
 
-        return MarketOrder(action, instrument, quantity, onClose, self.getInstrumentTraits(instrument))
+        return MarketOrder(action, instrument, quantity, onClose, self.getInstrumentTraits(instrument), extra=extra)
 
-    def createLimitOrder(self, action, instrument, limitPrice, quantity):
-        return LimitOrder(action, instrument, limitPrice, quantity, self.getInstrumentTraits(instrument))
+    def createLimitOrder(self, action, instrument, limitPrice, quantity, extra={}):
+        return LimitOrder(action, instrument, limitPrice, quantity, self.getInstrumentTraits(instrument), extra=extra)
 
-    def createStopOrder(self, action, instrument, stopPrice, quantity):
-        return StopOrder(action, instrument, stopPrice, quantity, self.getInstrumentTraits(instrument))
+    def createStopOrder(self, action, instrument, stopPrice, quantity, extra={}):
+        return StopOrder(action, instrument, stopPrice, quantity, self.getInstrumentTraits(instrument), extra=extra)
 
-    def createStopLimitOrder(self, action, instrument, stopPrice, limitPrice, quantity):
-        return StopLimitOrder(action, instrument, stopPrice, limitPrice, quantity, self.getInstrumentTraits(instrument))
+    def createStopLimitOrder(self, action, instrument, stopPrice, limitPrice, quantity, extra={}):
+        return StopLimitOrder(action, instrument, stopPrice, limitPrice, quantity, self.getInstrumentTraits(instrument), extra=extra)
 
     def cancelOrder(self, order):
         activeOrder = self.__activeOrders.get(order.getId())
         if activeOrder is None:
-            raise Exception("The order is not active anymore")
+            common.logger.error("The order is not active anymore")
+            return
         if activeOrder.isFilled():
-            raise Exception("Can't cancel order that has already been filled")
+            common.logger.error("Can't cancel order that has already been filled")
+            return
 
         self._unregisterOrder(activeOrder)
         activeOrder.switchState(broker.Order.State.CANCELED)
         self.notifyOrderEvent(
             broker.OrderEvent(activeOrder, broker.OrderEvent.Type.CANCELED, "User requested cancellation")
         )
+
+    def updateOrder(self, order, stopPrice=None, limitPrice=None, quantity=None, goodTillCanceled=True, extra={}):
+        activeOrder = self.__activeOrders.get(order.getId())
+        if activeOrder is None:
+            raise Exception("The order is not active anymore")
+        if activeOrder.isFilled():
+            raise Exception("Can't cancel order that has already been filled")
+
+        if stopPrice is not None:
+            if type(activeOrder).__name__ == 'StopLimitOrder':
+                activeOrder._StopLimitOrder__stopPrice = stopPrice
+                activeOrder._StopLimitOrder__stopHit = False
+            elif type(activeOrder).__name__ == 'StopOrder':
+                activeOrder._StopOrder__stopPrice = stopPrice
+                activeOrder._StopOrder__stopHit = False
+        if limitPrice is not None:
+            if type(activeOrder).__name__ == 'LimitOrder':
+                activeOrder._LimitOrder__limitPrice = limitPrice
+            elif type(activeOrder).__name__ == 'StopLimitOrder':
+                activeOrder._StopLimitOrder__limitPrice = limitPrice
+            elif type(activeOrder).__name__ == 'StopOrder':
+                activeOrder._StopOrder__limitPrice = limitPrice
+        if quantity is not None:
+            activeOrder._Order__quantity = quantity

@@ -45,7 +45,7 @@ class IntraDayRange(TimeRange):
     def __init__(self, dateTime, frequency):
         super(IntraDayRange, self).__init__()
         assert isinstance(frequency, int)
-        assert frequency > 1
+        assert frequency > 0
         assert frequency < bar.Frequency.DAY
 
         ts = int(dt.datetime_to_timestamp(dateTime))
@@ -111,7 +111,7 @@ class MonthRange(TimeRange):
 
 def is_valid_frequency(frequency):
     assert(isinstance(frequency, int))
-    assert(frequency > 1)
+    assert(frequency > 0)
 
     if frequency < bar.Frequency.DAY:
         ret = True
@@ -126,7 +126,7 @@ def is_valid_frequency(frequency):
 
 def build_range(dateTime, frequency):
     assert(isinstance(frequency, int))
-    assert(frequency > 1)
+    assert(frequency > 0)
 
     if frequency < bar.Frequency.DAY:
         ret = IntraDayRange(dateTime, frequency)

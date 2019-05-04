@@ -286,10 +286,10 @@ class LiveBroker(broker.Broker):
         else:
             raise Exception("The order was already processed")
 
-    def createMarketOrder(self, action, instrument, quantity, onClose=False):
+    def createMarketOrder(self, action, instrument, quantity, onClose=False, extra={}):
         raise Exception("Market orders are not supported")
 
-    def createLimitOrder(self, action, instrument, limitPrice, quantity):
+    def createLimitOrder(self, action, instrument, limitPrice, quantity, extra={}):
         if instrument != common.btc_symbol:
             raise Exception("Only BTC instrument is supported")
 
@@ -304,12 +304,12 @@ class LiveBroker(broker.Broker):
         instrumentTraits = self.getInstrumentTraits(instrument)
         limitPrice = round(limitPrice, 2)
         quantity = instrumentTraits.roundQuantity(quantity)
-        return broker.LimitOrder(action, instrument, limitPrice, quantity, instrumentTraits)
+        return broker.LimitOrder(action, instrument, limitPrice, quantity, instrumentTraits, extra=extra)
 
-    def createStopOrder(self, action, instrument, stopPrice, quantity):
+    def createStopOrder(self, action, instrument, stopPrice, quantity, extra={}):
         raise Exception("Stop orders are not supported")
 
-    def createStopLimitOrder(self, action, instrument, stopPrice, limitPrice, quantity):
+    def createStopLimitOrder(self, action, instrument, stopPrice, limitPrice, quantity, extra={}):
         raise Exception("Stop limit orders are not supported")
 
     def cancelOrder(self, order):

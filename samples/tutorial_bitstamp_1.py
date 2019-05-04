@@ -16,9 +16,14 @@ class Strategy(strategy.BaseStrategy):
         self.__ask = None
         self.__position = None
         self.__posSize = 0.05
+        self.resampleBarFeed(60, self.onResampledBars)
 
         # Subscribe to order book update events to get bid/ask prices to trade.
         feed.getOrderBookUpdateEvent().subscribe(self.__onOrderBookUpdate)
+
+    def onResampledBars(self, bars):
+        bar = bars[self._Strategy__instrument]
+        self.info("Resampled - Price: %s. Volume: %s." % (bar.getClose(), bar.getVolume()))
 
     def __onOrderBookUpdate(self, orderBookUpdate):
         bid = orderBookUpdate.getBidPrices()[0]
@@ -69,6 +74,7 @@ def main():
     strat = Strategy(barFeed, brk)
 
     strat.run()
+
 
 if __name__ == "__main__":
     main()

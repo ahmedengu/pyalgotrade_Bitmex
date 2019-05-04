@@ -1,0 +1,12 @@
+bitmex
+pytz
+numpy
+scipy
+python-dateutil
+requests
+matplotlib
+ws4py
+tornado
+tweepy
+python-telegram-bot
+TA-Lib

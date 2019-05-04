@@ -85,7 +85,7 @@ class TwitterFeed(observer.Subject):
         * At least **track** or **follow** have to be set.
     """
 
-    QUEUE_TIMEOUT = 0.01
+    QUEUE_TIMEOUT = 0.001
     MAX_EVENTS_PER_DISPATCH = 50
 
     def __init__(self, consumerKey, consumerSecret, accessToken, accessTokenSecret, track=[], follow=[], languages=[]):

@@ -128,6 +128,9 @@ class Order(object):
         STOP = 3
         STOP_LIMIT = 4
         NEXT_CUSTOM_TYPE = 1000
+        MARKET_IF_TOUCHED = 1001
+        LIMIT_IF_TOUCHED = 1002
+        MARKET_WITH_LEFT_OVER_AS_LIMIT = 1003
 
     # Valid state transitions.
     VALID_TRANSITIONS = {
@@ -137,7 +140,7 @@ class Order(object):
         State.PARTIALLY_FILLED: [State.PARTIALLY_FILLED, State.FILLED, State.CANCELED],
     }
 
-    def __init__(self, type_, action, instrument, quantity, instrumentTraits):
+    def __init__(self, type_, action, instrument, quantity, instrumentTraits, extra={}):
         if quantity is not None and quantity <= 0:
             raise Exception("Invalid quantity")
 
@@ -155,6 +158,7 @@ class Order(object):
         self.__allOrNone = False
         self.__state = Order.State.INITIAL
         self.__submitDateTime = None
+        self.__extra = extra
 
     # This is to check that orders are not compared directly. order ids should be compared.
 #    def __eq__(self, other):
@@ -201,7 +205,7 @@ class Order(object):
         return self.__submitDateTime
 
     def setSubmitted(self, orderId, dateTime):
-        assert(self.__id is None or orderId == self.__id)
+        assert(self.__id is None or orderId == self.__id or 'temp' in self.__id)
         self.__id = orderId
         self.__submitDateTime = dateTime
 
@@ -292,8 +296,8 @@ class Order(object):
 
         .. note:: This can't be changed once the order is submitted.
         """
-        if self.__state != Order.State.INITIAL:
-            raise Exception("The order has already been submitted")
+        # if self.__state != Order.State.INITIAL:
+        #     raise Exception("The order has already been submitted")
         self.__goodTillCanceled = goodTillCanceled
 
     def getAllOrNone(self):
@@ -308,8 +312,8 @@ class Order(object):
 
         .. note:: This can't be changed once the order is submitted.
         """
-        if self.__state != Order.State.INITIAL:
-            raise Exception("The order has already been submitted")
+        # if self.__state != Order.State.INITIAL:
+        #     raise Exception("The order has already been submitted")
         self.__allOrNone = allOrNone
 
     def addExecutionInfo(self, orderExecutionInfo):
@@ -357,6 +361,9 @@ class Order(object):
     def isSell(self):
         return self.__action in [Order.Action.SELL, Order.Action.SELL_SHORT]
 
+    def getExtra(self):
+        return self.__extra
+
 
 class MarketOrder(Order):
     """Base class for market orders.
@@ -366,13 +373,16 @@ class MarketOrder(Order):
         This is a base class and should not be used directly.
     """
 
-    def __init__(self, action, instrument, quantity, onClose, instrumentTraits):
-        super(MarketOrder, self).__init__(Order.Type.MARKET, action, instrument, quantity, instrumentTraits)
+    def __init__(self, action, instrument, quantity, onClose, instrumentTraits, extra = {}):
+        super(MarketOrder, self).__init__(Order.Type.MARKET, action, instrument, quantity, instrumentTraits, extra=extra)
         self.__onClose = onClose
 
     def getFillOnClose(self):
         """Returns True if the order should be filled as close to the closing price as possible (Market-On-Close order)."""
         return self.__onClose
+
+    def getStopHit(self):
+        return True
 
 
 class LimitOrder(Order):
@@ -383,13 +393,17 @@ class LimitOrder(Order):
         This is a base class and should not be used directly.
     """
 
-    def __init__(self, action, instrument, limitPrice, quantity, instrumentTraits):
-        super(LimitOrder, self).__init__(Order.Type.LIMIT, action, instrument, quantity, instrumentTraits)
+    def __init__(self, action, instrument, limitPrice, quantity, instrumentTraits, extra = {}):
+        super(LimitOrder, self).__init__(Order.Type.LIMIT, action, instrument, quantity, instrumentTraits, extra=extra)
         self.__limitPrice = limitPrice
 
     def getLimitPrice(self):
         """Returns the limit price."""
         return self.__limitPrice
+
+    def getStopHit(self):
+        return True
+
 
 
 class StopOrder(Order):
@@ -400,13 +414,24 @@ class StopOrder(Order):
         This is a base class and should not be used directly.
     """
 
-    def __init__(self, action, instrument, stopPrice, quantity, instrumentTraits):
-        super(StopOrder, self).__init__(Order.Type.STOP, action, instrument, quantity, instrumentTraits)
+    def __init__(self, action, instrument, stopPrice, quantity, instrumentTraits, extra = {}):
+        super(StopOrder, self).__init__(Order.Type.STOP, action, instrument, quantity, instrumentTraits, extra = extra)
         self.__stopPrice = stopPrice
+        self.__stopHit = False
+
+    def process(self, broker_, bar_):
+        return broker_.getStrategy().fillStopOrder(broker_, self, bar_)
 
     def getStopPrice(self):
         """Returns the stop price."""
         return self.__stopPrice
+
+    def setStopHit(self, stopHit):
+        self.__stopHit = stopHit
+
+    def getStopHit(self):
+        return self.__stopHit
+
 
 
 class StopLimitOrder(Order):
@@ -417,10 +442,14 @@ class StopLimitOrder(Order):
         This is a base class and should not be used directly.
     """
 
-    def __init__(self, action, instrument, stopPrice, limitPrice, quantity, instrumentTraits):
-        super(StopLimitOrder, self).__init__(Order.Type.STOP_LIMIT, action, instrument, quantity, instrumentTraits)
+    def __init__(self, action, instrument, stopPrice, limitPrice, quantity, instrumentTraits, extra = {}):
+        super(StopLimitOrder, self).__init__(Order.Type.STOP_LIMIT, action, instrument, quantity, instrumentTraits, extra = extra)
         self.__stopPrice = stopPrice
         self.__limitPrice = limitPrice
+        self.__stopHit = False
+
+    def process(self, broker_, bar_):
+        return broker_.getStrategy().fillStopLimitOrder(broker_, self, bar_)
 
     def getStopPrice(self):
         """Returns the stop price."""
@@ -430,6 +459,11 @@ class StopLimitOrder(Order):
         """Returns the limit price."""
         return self.__limitPrice
 
+    def setStopHit(self, stopHit):
+        self.__stopHit = stopHit
+
+    def getStopHit(self):
+        return self.__stopHit
 
 class OrderExecutionInfo(object):
     """Execution information for an order."""
@@ -561,7 +595,7 @@ class Broker(observer.Subject):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def createMarketOrder(self, action, instrument, quantity, onClose=False):
+    def createMarketOrder(self, action, instrument, quantity, onClose=False, extra ={}):
         """Creates a Market order.
         A market order is an order to buy or sell a stock at the best available price.
         Generally, this type of order will be executed immediately. However, the price at which a market order will be executed
@@ -580,7 +614,7 @@ class Broker(observer.Subject):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def createLimitOrder(self, action, instrument, limitPrice, quantity):
+    def createLimitOrder(self, action, instrument, limitPrice, quantity, extra ={}):
         """Creates a Limit order.
         A limit order is an order to buy or sell a stock at a specific price or better.
         A buy limit order can only be executed at the limit price or lower, and a sell limit order can only be executed at the
@@ -599,7 +633,7 @@ class Broker(observer.Subject):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def createStopOrder(self, action, instrument, stopPrice, quantity):
+    def createStopOrder(self, action, instrument, stopPrice, quantity, extra ={}):
         """Creates a Stop order.
         A stop order, also referred to as a stop-loss order, is an order to buy or sell a stock once the price of the stock
         reaches a specified price, known as the stop price.
@@ -622,7 +656,7 @@ class Broker(observer.Subject):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def createStopLimitOrder(self, action, instrument, stopPrice, limitPrice, quantity):
+    def createStopLimitOrder(self, action, instrument, stopPrice, limitPrice, quantity, extra ={}):
         """Creates a Stop-Limit order.
         A stop-limit order is an order to buy or sell a stock that combines the features of a stop order and a limit order.
         Once the stop price is reached, a stop-limit order becomes a limit order that will be executed at a specified price
@@ -647,6 +681,15 @@ class Broker(observer.Subject):
         """Requests an order to be canceled. If the order is filled an Exception is raised.
 
         :param order: The order to cancel.
+        :type order: :class:`Order`.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def updateOrder(self, order, stopPrice=None, limitPrice=None, quantity=None, goodTillCanceled=True, extra={}):
+        """Requests an order to be updated. If the order is filled an Exception is raised.
+
+        :param order: The order to update.
         :type order: :class:`Order`.
         """
         raise NotImplementedError()

@@ -17,7 +17,7 @@ def main(plot):
     # Load the bars. These files were manually downloaded from Yahoo Finance.
     feed = yahoofeed.Feed()
     for year in range(2009, 2013):
-        fileName = "%s-%d-yahoofinance.csv" % (instrument, year)
+        fileName = "data/%s-%d-yahoofinance.csv" % (instrument, year)
         print("Loading bars from %s" % fileName)
         feed.addBarsFromCSV(instrument, fileName)
 

@@ -17,13 +17,16 @@
 """
 .. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
 """
+import traceback
 
 from pyalgotrade import utils
 from pyalgotrade import observer
 from pyalgotrade import dispatchprio
 
-
 # This class is responsible for dispatching events from multiple subjects, synchronizing them if necessary.
+from pyalgotrade.bitmex import common
+
+
 class Dispatcher(object):
     def __init__(self):
         self.__subjects = []
@@ -44,6 +47,7 @@ class Dispatcher(object):
 
     def stop(self):
         self.__stop = True
+        common.logger.info("dispatcher stop.")
 
     def getSubjects(self):
         return self.__subjects
@@ -109,8 +113,12 @@ class Dispatcher(object):
                 eof, eventsDispatched = self.__dispatch()
                 if eof:
                     self.__stop = True
+                    common.logger.info("dispatcher stop: ")
                 elif not eventsDispatched:
                     self.__idleEvent.emit()
+        except Exception as e:
+            traceback.print_exc()
+            common.logger.info("dispatcher error: " + str(e))
         finally:
             # There are no more events.
             self.__currDateTime = None
