@@ -1,4 +1,4 @@
-PyAlgoTrade with bitmex support
+PyAlgoTrade fork with bitmex and telegram support
 ===========
 
 [![Build Status](https://travis-ci.org/gbeced/pyalgotrade.png?branch=master)](https://travis-ci.org/gbeced/pyalgotrade)
