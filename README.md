@@ -1,4 +1,4 @@
-PyAlgoTrade
+PyAlgoTrade with bitmex support
 ===========
 
 [![Build Status](https://travis-ci.org/gbeced/pyalgotrade.png?branch=master)](https://travis-ci.org/gbeced/pyalgotrade)
@@ -9,10 +9,12 @@ PyAlgoTrade is an **event driven algorithmic trading** Python library. Although 
 was on **backtesting**, **paper trading** is now possible using:
 
  * [Bitstamp](https://www.bitstamp.net/) for Bitcoins
-
+ * [Bitmex](https://www.bitmex.com/) for Bitcoins
+ 
 and **live trading** is now possible using:
 
  * [Bitstamp](https://www.bitstamp.net/) for Bitcoins
+ * [Bitmex](https://www.bitmex.com/) for Bitcoins
 
 To get started with PyAlgoTrade take a look at the [tutorial](http://gbeced.github.io/pyalgotrade/docs/v0.20/html/tutorial.html) and the [full documentation](http://gbeced.github.io/pyalgotrade/docs/v0.20/html/index.html).
 
